@@ -1,8 +1,10 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pre-commit-cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
 .venv/
 .env
 media/
