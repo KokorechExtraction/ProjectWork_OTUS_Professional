@@ -1,8 +1,9 @@
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from structlog.contextvars import bind_contextvars, clear_contextvars
@@ -18,7 +19,7 @@ from app.websocket.manager import manager
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     await redis_runtime.connect()
     await manager.start()
@@ -42,7 +43,9 @@ def _duration_ms(start: float) -> float:
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def log_requests(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     request_id = request.headers.get("X-Request-ID", str(uuid4()))
     start = perf_counter()
     clear_contextvars()
@@ -71,7 +74,7 @@ async def log_requests(request: Request, call_next):
 
 
 @app.get("/")
-async def index(request: Request):
+async def index(request: Request) -> Response:
     return templates.TemplateResponse(request, "index.html")
 
 

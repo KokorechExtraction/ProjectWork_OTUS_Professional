@@ -1,7 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 
 from app.core.log_config import get_logger
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import TokenPayload, create_access_token, hash_password, verify_password
 from app.models.user import User
 from app.repositories.user import UserRepository
 
@@ -35,7 +35,7 @@ class AuthService:
         logger.info("user_registered", user_id=user.id, username=user.username)
         return user
 
-    async def login(self, email: str, password: str) -> dict[str, object]:
+    async def login(self, email: str, password: str) -> TokenPayload:
         user = await self.user_repo.get_by_email(email)
         if user is None or not verify_password(password, user.password_hash):
             logger.warning("login_failed", email=email)

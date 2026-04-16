@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)) -> None:
     payload = decode_access_token(token)
     user_id = int(payload["sub"])
 

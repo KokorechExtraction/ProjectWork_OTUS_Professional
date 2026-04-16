@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_password: str = "postgres"
     redis_url: str = "redis://localhost:6379/0"
-    jwt_secret_key: str = Field(..., alias="JWT_SECRET_KEY")
+    jwt_secret_key: str = Field(default="change-me", alias="JWT_SECRET_KEY")
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
     media_root: str = "media"

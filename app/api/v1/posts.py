@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +11,7 @@ from app.core.cache import (
 )
 from app.core.redis import redis_runtime
 from app.db.session import get_db_session
+from app.models.post import Post
 from app.models.user import User
 from app.repositories.post import PostRepository
 from app.schemas.mappers import to_post_comment_out, to_post_out
@@ -25,7 +28,11 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 
 async def build_post_out(
-    post_repo: PostRepository, post_id: int, current_user_id: int, *, fallback=None
+    post_repo: PostRepository,
+    post_id: int,
+    current_user_id: int,
+    *,
+    fallback: Post | None = None,
 ) -> PostOut:
     post = await post_repo.get_by_id(post_id)
     if post is None:
@@ -40,9 +47,9 @@ async def build_post_out(
 @router.post("", response_model=PostOut)
 async def create_post(
     payload: CreatePostRequest,
-    current_user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostOut:
     post_repo = PostRepository(session)
     post = await PostService(post_repo).create_post(current_user.id, payload.text)
     await invalidate_wall_cache_for_user(current_user.id)
@@ -53,9 +60,9 @@ async def create_post(
 async def edit_post(
     post_id: int,
     payload: UpdatePostRequest,
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostOut:
     post_repo = PostRepository(session)
     try:
         post = await PostService(post_repo).edit_post(
@@ -90,12 +97,12 @@ async def delete_post(
 @router.get("/user/{user_id}", response_model=list[PostOut])
 async def user_posts(
     user_id: int,
-    current_user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> list[PostOut]:
     cache_key = user_wall_cache_key(current_user.id, user_id)
     cached = await redis_runtime.get_json(cache_key)
-    if cached is not None:
+    if isinstance(cached, list):
         return [PostOut.model_validate(item) for item in cached]
 
     post_repo = PostRepository(session)
@@ -115,9 +122,9 @@ async def user_posts(
 async def create_comment(
     post_id: int,
     payload: CreateCommentRequest,
-    current_user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostCommentOut:
     post_repo = PostRepository(session)
     try:
         comment = await PostService(post_repo).create_comment(
@@ -134,9 +141,9 @@ async def create_comment(
 @router.post("/{post_id}/like", response_model=PostOut)
 async def like_post(
     post_id: int,
-    current_user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostOut:
     post_repo = PostRepository(session)
     try:
         post = await PostService(post_repo).like_post(current_user.id, post_id)
@@ -149,9 +156,9 @@ async def like_post(
 @router.delete("/{post_id}/like", response_model=PostOut)
 async def unlike_post(
     post_id: int,
-    current_user=Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PostOut:
     post_repo = PostRepository(session)
     try:
         post = await PostService(post_repo).unlike_post(current_user.id, post_id)

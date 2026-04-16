@@ -40,7 +40,7 @@ async def download_file(
     file_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-):
+) -> Response:
     service = FileService(FileRepository(session))
     file = await service.get_file_for_user(file_id, current_user.id)
     if file is None:

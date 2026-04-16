@@ -71,6 +71,10 @@ pretty = true
 show_error_codes = true
 exclude = ["scripts", "docs", "tests"]
 
+[[tool.mypy.overrides]]
+module = ["aiofiles"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

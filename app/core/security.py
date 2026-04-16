@@ -1,5 +1,5 @@
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, TypedDict, cast
 
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
@@ -10,19 +10,25 @@ from app.models.user import User
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+class TokenPayload(TypedDict):
+    access_token: str
+    token_type: str
+    expires_in: int
+
+
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return cast(str, pwd_context.hash(password))
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return pwd_context.verify(password, password_hash)
+    return cast(bool, pwd_context.verify(password, password_hash))
 
 
 def access_token_expires_in() -> int:
     return settings.jwt_access_token_expire_minutes * 60
 
 
-def create_access_token(*, user: User) -> dict[str, Any]:
+def create_access_token(*, user: User) -> TokenPayload:
     now = datetime.now(UTC)
     expire = now + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload: dict[str, Any] = {
@@ -42,11 +48,14 @@ def create_access_token(*, user: User) -> dict[str, Any]:
 
 def decode_access_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(
-            token,
-            settings.jwt_secret_key,
-            algorithms=[settings.jwt_algorithm],
-            options={"require": ["exp", "sub", "username", "is_admin"]},
+        return cast(
+            dict[str, Any],
+            jwt.decode(
+                token,
+                settings.jwt_secret_key,
+                algorithms=[settings.jwt_algorithm],
+                options={"require": ["exp", "sub", "username", "is_admin"]},
+            ),
         )
     except ExpiredSignatureError as exc:
         raise ValueError("Token expired") from exc

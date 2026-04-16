@@ -1,7 +1,9 @@
+import inspect
 import json
 
 from collections.abc import AsyncIterator
 from contextlib import suppress
+from typing import cast
 
 from redis.asyncio import Redis
 from redis.asyncio.client import PubSub
@@ -10,6 +12,9 @@ from app.core.config import settings
 from app.core.log_config import get_logger
 
 logger = get_logger(__name__)
+
+type JsonScalar = str | int | float | bool | None
+type JsonValue = JsonScalar | list["JsonValue"] | dict[str, "JsonValue"]
 
 
 class RedisRuntime:
@@ -29,7 +34,9 @@ class RedisRuntime:
             return
         client = Redis.from_url(settings.redis_url, decode_responses=True)
         try:
-            await client.ping()
+            ping_result = client.ping()
+            if inspect.isawaitable(ping_result):
+                await ping_result
         except Exception as exc:
             await client.aclose()
             logger.warning("redis_unavailable", redis_url=settings.redis_url, detail=str(exc))
@@ -44,21 +51,21 @@ class RedisRuntime:
         self._client = None
         logger.info("redis_disconnected")
 
-    async def publish_json(self, channel: str, payload: dict) -> bool:
+    async def publish_json(self, channel: str, payload: dict[str, JsonValue]) -> bool:
         if self._client is None:
             return False
         await self._client.publish(channel, json.dumps(payload))
         return True
 
-    async def get_json(self, key: str):
+    async def get_json(self, key: str) -> JsonValue | None:
         if self._client is None:
             return None
         raw = await self._client.get(key)
         if raw is None:
             return None
-        return json.loads(raw)
+        return cast(JsonValue, json.loads(raw))
 
-    async def set_json(self, key: str, value, ttl_seconds: int) -> bool:
+    async def set_json(self, key: str, value: JsonValue, ttl_seconds: int) -> bool:
         if self._client is None:
             return False
         await self._client.set(key, json.dumps(value), ex=ttl_seconds)
@@ -90,11 +97,11 @@ class RedisRuntime:
     async def _scan_iter(self, pattern: str) -> AsyncIterator[str]:
         if self._client is None:
             return
-        cursor = 0
+        cursor: int = 0
         while True:
             cursor, keys = await self._client.scan(cursor=cursor, match=pattern, count=100)
             for key in keys:
-                yield key
+                yield str(key)
             if cursor == 0:
                 break
 

@@ -31,7 +31,7 @@ async def list_users(
 ) -> list[UserOut]:
     cache_key = user_list_cache_key(current_user.id, q)
     cached = await redis_runtime.get_json(cache_key)
-    if cached is not None:
+    if isinstance(cached, list):
         logger.info("user_list_cache_hit", user_id=current_user.id, query=q)
         return [UserOut.model_validate(item) for item in cached]
 
@@ -58,7 +58,7 @@ async def update_me(
     payload: UpdateUserRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
-):
+) -> UserOut:
     repo = UserRepository(session)
 
     existing_by_username = await repo.get_by_username(payload.username)
@@ -89,12 +89,12 @@ async def update_me(
 @router.get("/{user_id}", response_model=UserOut)
 async def get_user(
     user_id: int,
-    _: object = Depends(get_current_user),
-    session: AsyncSession = Depends(get_db_session),
-):
+    current_user: Annotated[User, Depends(get_current_user)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UserOut:
     user = await UserRepository(session).get_by_id(user_id)
     if user is None:
-        logger.warning("user_get_not_found", requester_id=getattr(_, "id", None), user_id=user_id)
+        logger.warning("user_get_not_found", requester_id=current_user.id, user_id=user_id)
         raise HTTPException(status_code=404, detail="User not found")
     logger.info("user_loaded", user_id=user_id)
     return to_user_out(user)
