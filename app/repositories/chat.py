@@ -12,10 +12,12 @@ class ChatRepository:
         chat = Chat()
         self.session.add(chat)
         await self.session.flush()
-        self.session.add_all([
-            ChatParticipant(chat_id=chat.id, user_id=user_a),
-            ChatParticipant(chat_id=chat.id, user_id=user_b),
-        ])
+        self.session.add_all(
+            [
+                ChatParticipant(chat_id=chat.id, user_id=user_a),
+                ChatParticipant(chat_id=chat.id, user_id=user_b),
+            ]
+        )
         await self.session.commit()
         await self.session.refresh(chat)
         return chat
@@ -39,6 +41,10 @@ class ChatRepository:
         )
         return list(result.scalars().all())
 
+    async def list_all_chats(self) -> list[Chat]:
+        result = await self.session.execute(select(Chat).order_by(Chat.created_at.desc()))
+        return list(result.scalars().all())
+
     async def list_participant_ids(self, chat_id: int) -> list[int]:
         result = await self.session.execute(
             select(ChatParticipant.user_id).where(ChatParticipant.chat_id == chat_id)
@@ -46,5 +52,9 @@ class ChatRepository:
         return list(result.scalars().all())
 
     async def is_user_in_chat(self, chat_id: int, user_id: int) -> bool:
-        result = await self.session.execute(select(ChatParticipant).where(and_(ChatParticipant.chat_id == chat_id, ChatParticipant.user_id == user_id)))
+        result = await self.session.execute(
+            select(ChatParticipant).where(
+                and_(ChatParticipant.chat_id == chat_id, ChatParticipant.user_id == user_id)
+            )
+        )
         return result.scalar_one_or_none() is not None

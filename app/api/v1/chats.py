@@ -9,6 +9,7 @@ from app.models.user import User
 from app.repositories.chat import ChatRepository
 from app.repositories.user import UserRepository
 from app.schemas.chat import ChatOut, CreatePrivateChatRequest
+from app.schemas.mappers import to_chat_out, to_chat_out_list
 from app.services.chat import ChatService
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -20,12 +21,14 @@ async def create_private_chat(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> ChatOut:
-    service = ChatService(ChatRepository(session), UserRepository(session))
+    chat_repo = ChatRepository(session)
+    user_repo = UserRepository(session)
+    service = ChatService(chat_repo, user_repo)
     try:
         chat = await service.get_or_create_private_chat(current_user.id, payload.other_user_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ChatOut.model_validate(chat)
+    return await to_chat_out(chat, current_user.id, user_repo, chat_repo)
 
 
 @router.get("", response_model=list[ChatOut])
@@ -33,7 +36,7 @@ async def list_chats(
     current_user: Annotated[User, Depends(get_current_user)],
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> list[ChatOut]:
-    chats = await ChatService(ChatRepository(session), UserRepository(session)).list_user_chats(
-        current_user.id
-    )
-    return [ChatOut.model_validate(chat) for chat in chats]
+    chat_repo = ChatRepository(session)
+    user_repo = UserRepository(session)
+    chats = await ChatService(chat_repo, user_repo).list_user_chats(current_user.id)
+    return await to_chat_out_list(chats, current_user.id, user_repo, chat_repo)

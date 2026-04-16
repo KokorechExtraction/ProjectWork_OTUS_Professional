@@ -8,7 +8,9 @@ from app.db.mixins import IntIdPkMixin, TimestampMixin
 class Chat(IntIdPkMixin, TimestampMixin, Base):
     __tablename__ = "chats"
 
-    participants = relationship("ChatParticipant", back_populates="chat", cascade="all, delete-orphan")
+    participants = relationship(
+        "ChatParticipant", back_populates="chat", cascade="all, delete-orphan"
+    )
     messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")
 
 

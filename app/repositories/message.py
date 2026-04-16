@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.file import MessageFile
 from app.models.message import Message, MessageRead, MessageStatus
@@ -12,9 +13,10 @@ class MessageRepository:
         self.session = session
 
     async def create(self, chat_id: int, sender_id: int, text: str) -> Message:
-        message = Message(chat_id=chat_id, sender_id=sender_id, text=text, status=MessageStatus.sent)
+        message = Message(
+            chat_id=chat_id, sender_id=sender_id, text=text, status=MessageStatus.sent
+        )
         self.session.add(message)
-        await self.session.flush()
         await self.session.commit()
         await self.session.refresh(message)
         return message
@@ -25,11 +27,20 @@ class MessageRepository:
         await self.session.commit()
 
     async def list_chat_messages(self, chat_id: int) -> list[Message]:
-        result = await self.session.execute(select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at.asc()))
+        result = await self.session.execute(
+            select(Message)
+            .where(Message.chat_id == chat_id)
+            .options(selectinload(Message.attachments).selectinload(MessageFile.file))
+            .order_by(Message.created_at.asc())
+        )
         return list(result.scalars().all())
 
     async def get_by_id(self, message_id: int) -> Message | None:
-        result = await self.session.execute(select(Message).where(Message.id == message_id))
+        result = await self.session.execute(
+            select(Message)
+            .where(Message.id == message_id)
+            .options(selectinload(Message.attachments).selectinload(MessageFile.file))
+        )
         return result.scalar_one_or_none()
 
     async def mark_delivered(self, message: Message) -> Message:
@@ -38,12 +49,28 @@ class MessageRepository:
         await self.session.refresh(message)
         return message
 
+    async def update_text(self, message: Message, text: str) -> Message:
+        message.text = text
+        await self.session.commit()
+        refreshed = await self.get_by_id(message.id)
+        return refreshed or message
+
+    async def delete_message(self, message: Message) -> None:
+        await self.session.delete(message)
+        await self.session.commit()
+
     async def mark_read(self, message: Message, user_id: int) -> Message:
-        result = await self.session.execute(select(MessageRead).where(and_(MessageRead.message_id == message.id, MessageRead.user_id == user_id)))
+        result = await self.session.execute(
+            select(MessageRead).where(
+                and_(MessageRead.message_id == message.id, MessageRead.user_id == user_id)
+            )
+        )
         existing = result.scalar_one_or_none()
         if existing is None:
-            self.session.add(MessageRead(message_id=message.id, user_id=user_id, read_at=datetime.now(UTC)))
+            self.session.add(
+                MessageRead(message_id=message.id, user_id=user_id, read_at=datetime.now(UTC))
+            )
         message.status = MessageStatus.read
         await self.session.commit()
-        await self.session.refresh(message)
-        return message
+        refreshed = await self.get_by_id(message.id)
+        return refreshed or message

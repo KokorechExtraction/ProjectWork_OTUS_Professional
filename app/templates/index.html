@@ -1,53 +1,139 @@
-<!doctype html>
-<html lang="en">
+﻿<!doctype html>
+<html lang="ru">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Async Messenger</title>
+    <title>Моя оборона</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="/static/css/app.css" rel="stylesheet">
   </head>
   <body class="bg-light">
     <div class="container py-4">
+      <div class="text-center mb-4">
+        <h1 class="display-5 fw-bold mb-1">Моя оборона</h1>
+        <p class="text-muted mb-0">@кому нужен ломтик июльского неба?</p>
+      </div>
+
       <div class="alert d-none" id="statusAlert" role="alert"></div>
+
       <div class="row g-4">
         <div class="col-lg-4">
           <div class="card shadow-sm">
             <div class="card-body">
-              <h3 class="card-title">Auth</h3>
+              <h3 class="card-title">Авторизация</h3>
+              <p class="text-muted">Войдите или зарегистрируйтесь, чтобы начать общение.</p>
+
               <div class="mb-3">
-                <label class="form-label">Username</label>
-                <input class="form-control" id="username" />
+                <label class="form-label">Имя пользователя</label>
+                <input class="form-control" id="username" placeholder="Введите имя пользователя">
               </div>
+
               <div class="mb-3">
                 <label class="form-label">Email</label>
-                <input class="form-control" id="email" />
+                <input class="form-control" id="email" placeholder="Введите email">
               </div>
+
               <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" />
+                <label class="form-label">Пароль</label>
+                <input type="password" class="form-control" id="password" placeholder="Введите пароль">
               </div>
+
               <div class="d-flex gap-2">
-                <button class="btn btn-primary" id="registerBtn">Register</button>
-                <button class="btn btn-success" id="loginBtn">Login</button>
+                <button class="btn btn-primary" id="registerBtn">Регистрация</button>
+                <button class="btn btn-success" id="loginBtn">Войти</button>
               </div>
+
               <hr>
-              <div class="mb-3">
-                <label class="form-label">JWT Token</label>
-                <textarea class="form-control" id="token" rows="4"></textarea>
+
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-semibold">Статус сессии</span>
+                <span class="badge text-bg-secondary" id="sessionBadge">Не авторизован</span>
               </div>
-              <button class="btn btn-dark" id="connectBtn">Connect WebSocket</button>
+              <div class="small text-muted mb-3" id="currentUserInfo">Пользователь не вошел в систему.</div>
+              <button class="btn btn-outline-danger w-100" id="logoutBtn" disabled>Выйти</button>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-4">
+            <div class="card-body" id="profileCard">
+              <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <h4 class="card-title mb-1">Личный кабинет</h4>
+                  <div class="small text-muted" id="profileSubtitle">Войдите, чтобы увидеть свой профиль.</div>
+                </div>
+                <span class="badge text-bg-light" id="profileBadge">Гость</span>
+              </div>
+
+              <div class="profile-grid">
+                <div>
+                  <div class="profile-label">Имя</div>
+                  <input class="form-control" id="profileUsernameInput" placeholder="Имя пользователя">
+                </div>
+                <div>
+                  <div class="profile-label">Email</div>
+                  <input class="form-control" id="profileEmailInput" placeholder="Email">
+                </div>
+                <div>
+                  <div class="profile-label">Профиль создан</div>
+                  <div class="profile-value" id="profileCreatedAt">-</div>
+                </div>
+              </div>
+
+              <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-outline-primary" id="openMyWallBtn" disabled>Моя стена</button>
+                <button class="btn btn-primary" id="saveProfileBtn" disabled>Сохранить профиль</button>
+              </div>
             </div>
           </div>
 
           <div class="card shadow-sm mt-4">
             <div class="card-body">
-              <h4 class="card-title">Chats</h4>
-              <div class="input-group mb-3">
-                <input class="form-control" id="otherUserId" placeholder="Other user id">
-                <button class="btn btn-outline-primary" id="createChatBtn">Create</button>
+              <h4 class="card-title">Люди и чаты</h4>
+
+              <div class="mb-3">
+                <label class="form-label">Найти пользователя</label>
+                <div class="input-group">
+                  <input class="form-control" id="userSearchInput" placeholder="Имя пользователя или email">
+                  <button class="btn btn-outline-secondary" id="searchUsersBtn">Поиск</button>
+                </div>
               </div>
+
+              <div class="mb-3">
+                <div class="small text-muted mb-2">Результаты поиска</div>
+                <ul class="list-group" id="userSearchResults"></ul>
+              </div>
+
+              <div class="input-group mb-3">
+                <input class="form-control" id="otherUserId" placeholder="ID для нового чата">
+                <button class="btn btn-outline-primary" id="createChatBtn">Создать чат</button>
+              </div>
+
               <ul class="list-group" id="chatList"></ul>
+            </div>
+          </div>
+
+          <div class="card shadow-sm mt-4 d-none" id="adminPanel">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <h4 class="card-title mb-1">Администрирование</h4>
+                  <div class="small text-muted">Сначала выберите пользователя, затем откройте его стену или чаты.</div>
+                </div>
+                <span class="badge text-bg-danger">admin</span>
+              </div>
+
+              <div class="d-flex gap-2 mb-3">
+                <button class="btn btn-outline-primary btn-sm" id="loadAdminUsersBtn">Обновить список</button>
+              </div>
+
+              <div class="mb-3">
+                <input class="form-control" id="adminSearchInput" placeholder="Поиск по пользователям">
+              </div>
+
+              <div class="small text-muted mb-2">Пользователи</div>
+              <div class="list-group admin-users" id="adminUsersList">
+                <div class="list-group-item text-muted">Войдите как администратор, чтобы управлять пользователями.</div>
+              </div>
             </div>
           </div>
         </div>
@@ -55,41 +141,62 @@
         <div class="col-lg-8">
           <div class="card shadow-sm mb-4">
             <div class="card-body">
-              <h3 class="card-title">Messages</h3>
+              <h3 class="card-title">Сообщения</h3>
+
               <div class="mb-3">
-                <label class="form-label">Active Chat ID</label>
-                <input class="form-control" id="activeChatId" />
+                <label class="form-label">Активный чат</label>
+                <input class="form-control" id="activeChatId" placeholder="Выберите чат или укажите ID">
               </div>
-              <div id="messages" class="border rounded p-3 bg-white mb-3 message-box"></div>
+
+              <div id="messages" class="border rounded p-3 bg-white mb-3 message-box">
+                <div class="text-muted">Сообщения появятся здесь после выбора чата.</div>
+              </div>
+
               <div class="mb-3">
-                <label class="form-label">Message</label>
-                <input class="form-control" id="messageText" />
+                <label class="form-label">Текст сообщения</label>
+                <input class="form-control" id="messageText" placeholder="Введите сообщение">
               </div>
+
               <div class="mb-3">
-                <label class="form-label">Attach file</label>
-                <input type="file" class="form-control" id="messageFile" />
+                <label class="form-label">Прикрепить файл</label>
+                <input type="file" class="form-control" id="messageFile">
               </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-primary" id="sendMessageBtn">Send Message</button>
-                <button class="btn btn-outline-secondary" id="loadMessagesBtn">Load Messages</button>
-              </div>
+
+              <button class="btn btn-primary" id="sendMessageBtn">Отправить сообщение</button>
             </div>
           </div>
 
           <div class="card shadow-sm">
             <div class="card-body">
-              <h3 class="card-title">Microblog</h3>
-              <div class="mb-3">
-                <textarea class="form-control" id="postText" rows="3" placeholder="Write a post..."></textarea>
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                <div>
+                  <h3 class="card-title mb-1">Микроблог</h3>
+                  <div class="small text-muted" id="postsTitle">Откройте стену пользователя, чтобы увидеть посты.</div>
+                </div>
+                <div class="wall-actions">
+                  <div class="input-group">
+                    <input class="form-control" id="wallUserId" placeholder="ID пользователя для стены">
+                    <button class="btn btn-outline-primary" id="loadWallBtn">Открыть стену</button>
+                  </div>
+                </div>
               </div>
-              <button class="btn btn-primary mb-3" id="createPostBtn">Create Post</button>
-              <div id="posts" class="d-grid gap-3"></div>
+
+              <div class="mb-3">
+                <textarea class="form-control" id="postText" rows="3" placeholder="Напишите пост..."></textarea>
+              </div>
+
+              <button class="btn btn-primary mb-3" id="createPostBtn">Опубликовать пост</button>
+
+              <div id="posts" class="d-grid gap-3">
+                <div class="text-muted">Откройте свою стену или стену другого пользователя.</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=20260413-6"></script>
   </body>
 </html>

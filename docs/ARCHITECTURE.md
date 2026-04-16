@@ -1,67 +1,193 @@
-# Architecture
+# Project Architecture
 
-## Overview
+## High-Level Layout
 
-The application follows a layered architecture:
+The project is split into explicit layers:
 
-- API layer: FastAPI routes validate requests, map exceptions to HTTP responses, and serialize outputs.
-- Service layer: orchestrates business rules such as chat creation, message delivery, file access, and post likes.
-- Repository layer: isolates SQLAlchemy queries and persistence details.
-- Model layer: defines the PostgreSQL schema through SQLAlchemy ORM models.
-- Presentation layer: Jinja template plus Bootstrap and vanilla JavaScript for the browser UI.
+- `API` - HTTP and WebSocket endpoints
+- `Services` - business rules and coordination
+- `Repositories` - SQLAlchemy access to the database
+- `Models` - ORM entities
+- `Schemas and mappers` - request/response contracts and model-to-API conversion
+- `WebSocket manager` - active realtime connections and chat event delivery
+- `Core` - config, logging, Redis, cache helpers, security
 
-## Request Flow
+## Directory Map
 
-1. The browser or API client sends an HTTP request with a JWT bearer token.
-2. `get_current_user` decodes the token and loads the current user from the database.
-3. The route handler delegates work to a service class.
-4. The service uses repositories for persistence and, where needed, the WebSocket manager for realtime fan-out.
-5. A typed Pydantic schema is returned to the client.
+```text
+app/
+  api/
+    deps/
+    v1/
+  core/
+  db/
+  models/
+  repositories/
+  schemas/
+  services/
+  static/
+  templates/
+  websocket/
+alembic/
+docs/
+tests/
+```
 
-## Realtime Flow
+## Layer Responsibilities
 
-1. The client connects to `/api/v1/ws` with a JWT token.
-2. The backend resolves the user and loads the chat ids available to that user.
-3. The connection manager stores active sockets and the related chat membership in memory.
-4. When a message is sent or read, the message service broadcasts a typed event to all users subscribed to that chat.
+### API Layer
 
-## Domain Model
+Located in `app/api/v1`.
 
-### User
+Responsibilities:
 
-- owns uploaded files
-- authors posts
-- sends messages
-- participates in chats through `chat_participants`
+- accept HTTP and WebSocket requests
+- get FastAPI dependencies
+- call services
+- map internal results into `...Out` schemas
+- return HTTP responses
 
-### Chat
+The API layer should not keep SQLAlchemy query logic or heavy business rules.
 
-- currently represents private conversations
-- stores participants separately in `chat_participants`
-- stores messages in `messages`
+### Service Layer
 
-### Message
+Located in `app/services`.
 
-- belongs to one chat
-- has one sender
-- tracks a coarse delivery status
-- can be linked to multiple uploaded files
+Responsibilities:
 
-### File
+- enforce business rules
+- coordinate multiple repositories
+- trigger side effects such as Redis pub/sub and websocket broadcasts
 
-- belongs to an uploader
-- may be linked to messages through `message_files`
-- can be downloaded by the owner or a participant of the related chat
+Services work with internal models, not response schemas.
 
-### Post
+### Repository Layer
 
-- belongs to an author
-- can be liked by multiple users through `post_likes`
+Located in `app/repositories`.
 
-## Design Decisions
+Responsibilities:
 
-- SQLAlchemy async is used for consistency with FastAPI async endpoints.
-- Repositories keep raw query logic out of services.
-- Services provide a better seam for testing than route handlers.
-- The UI is intentionally thin and communicates directly with JSON endpoints.
-- WebSocket state is in memory, which is simple for local development but not horizontally scalable yet.
+- encapsulate SQLAlchemy
+- load and persist ORM models
+- hide details such as `select`, `join`, `selectinload`, `commit`, and `refresh`
+
+### Schemas and Mappers
+
+Located in `app/schemas`.
+
+Responsibilities:
+
+- define request contracts (`...Request`)
+- define response contracts (`...Out`)
+- convert ORM models into API-ready structures
+
+Simple mapping is done with `model_validate(...)`. More complex payloads are assembled in [mappers.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/schemas/mappers.py).
+
+## HTTP Request Flow
+
+Typical path:
+
+1. the client sends an HTTP request
+2. a FastAPI route receives request data
+3. dependencies provide the current user and DB session
+4. the route calls a service
+5. the service calls repositories
+6. repositories read or write ORM models
+7. the route maps the result into `...Out`
+8. the client gets a JSON response
+
+## WebSocket Flow
+
+Realtime is exposed through `/api/v1/ws`.
+
+Connection path:
+
+1. the client opens a WebSocket and passes `token` in the query string
+2. the server decodes JWT
+3. the server loads the user's chats through `AsyncSessionLocal`
+4. `ConnectionManager` accepts the websocket and stores chat membership
+5. later chat events are dispatched to the correct connected users
+
+## Redis in the Architecture
+
+Redis has two real roles in the system.
+
+### 1. Pub/Sub for Chat Events
+
+`ConnectionManager.broadcast_to_chat(...)` first publishes into the Redis channel `chat_events`.
+
+Then:
+
+1. one backend instance publishes the event
+2. listeners in all backend instances read the Redis pub/sub channel
+3. each local manager forwards the event to its own connected websocket clients
+
+This removes the realtime dependency on the memory of a single process.
+
+### 2. Cache
+
+Redis is also used to cache:
+
+- the user list and search results
+- user walls
+
+When source data changes, cache invalidation is triggered through helper functions in [cache.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/core/cache.py).
+
+## Multi-Instance Setup
+
+[docker-compose.yml](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docker-compose.yml) starts two backend instances:
+
+- `app` on `8000`
+- `app2` on `8001`
+
+They share:
+
+- one PostgreSQL container
+- one Redis container
+
+This is the intended demo setup for Redis-backed pub/sub across multiple app instances.
+
+## Persistence and External Services
+
+### PostgreSQL
+
+Stores persistent data:
+
+- users
+- chats
+- chat participants
+- messages
+- files
+- posts
+- comments
+- likes
+
+### Redis
+
+Handles temporary/shared runtime concerns:
+
+- chat events
+- cache entries
+
+## Presentation Layer
+
+The frontend is intentionally simple and not based on a separate SPA framework:
+
+- [index.html](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/templates/index.html)
+- [app.js](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/static/js/app.js)
+- [app.css](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/static/css/app.css)
+
+The UI acts as a thin client:
+
+- it calls REST API endpoints
+- it keeps one WebSocket connection for realtime
+- it renders chats, walls, and the admin panel
+
+## Why This Design
+
+- FastAPI fits async HTTP and WebSocket well
+- async SQLAlchemy provides one consistent data-access model
+- services and repositories reduce coupling
+- Pydantic schemas define a stable API contract
+- Redis solves both cache and cross-instance realtime delivery
+- Jinja2 plus Bootstrap keeps the UI simple and maintainable

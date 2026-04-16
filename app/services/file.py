@@ -1,7 +1,8 @@
-from pathlib import Path
 from uuid import uuid4
 
 import aiofiles
+
+from anyio import Path
 from fastapi import UploadFile
 
 from app.core.config import settings
@@ -15,7 +16,7 @@ class FileService:
 
     async def upload_file(self, current_user_id: int, upload: UploadFile) -> File:
         media_root = Path(settings.media_root)
-        media_root.mkdir(parents=True, exist_ok=True)
+        await media_root.mkdir(parents=True, exist_ok=True)
 
         suffix = Path(upload.filename or "file").suffix
         stored_name = f"{uuid4().hex}{suffix}"
@@ -34,8 +35,18 @@ class FileService:
             path=str(file_path),
         )
 
-    async def get_file(self, file_id: int) -> File | None:
-        return await self.file_repo.get_by_id(file_id)
-
     async def get_file_for_user(self, file_id: int, user_id: int) -> File | None:
         return await self.file_repo.get_accessible_by_user(file_id, user_id)
+
+    async def delete_unattached_file(self, file_id: int, current_user_id: int) -> None:
+        file = await self.file_repo.get_by_id_owned_by_user(file_id, current_user_id)
+        if file is None:
+            raise ValueError("File not found")
+        if await self.file_repo.is_attached_to_message(file_id):
+            raise ValueError("Attached files cannot be deleted")
+
+        file_path = Path(file.path)
+        if await file_path.exists():
+            await file_path.unlink()
+
+        await self.file_repo.delete(file)

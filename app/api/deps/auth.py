@@ -19,10 +19,18 @@ async def get_current_user(
     try:
         payload = decode_access_token(token)
     except ValueError as exc:
-        raise HTTPException(status_code=401, detail="Invalid token") from exc
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
     user_id = int(payload["sub"])
     repo = UserRepository(session)
     user = await repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User is inactive")
     return user
+
+
+async def get_current_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user

@@ -1,4 +1,5 @@
 import enum
+
 from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, UniqueConstraint
@@ -8,7 +9,7 @@ from app.db.base import Base
 from app.db.mixins import IntIdPkMixin, TimestampMixin
 
 
-class MessageStatus(str, enum.Enum):
+class MessageStatus(enum.StrEnum):
     sent = "sent"
     delivered = "delivered"
     read = "read"
@@ -20,12 +21,16 @@ class Message(IntIdPkMixin, TimestampMixin, Base):
     chat_id: Mapped[int] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"))
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     text: Mapped[str] = mapped_column(default="")
-    status: Mapped[MessageStatus] = mapped_column(Enum(MessageStatus, name="message_status"), default=MessageStatus.sent)
+    status: Mapped[MessageStatus] = mapped_column(
+        Enum(MessageStatus, name="message_status"), default=MessageStatus.sent
+    )
 
     chat = relationship("Chat", back_populates="messages")
     sender = relationship("User", back_populates="sent_messages")
     reads = relationship("MessageRead", back_populates="message", cascade="all, delete-orphan")
-    attachments = relationship("MessageFile", back_populates="message", cascade="all, delete-orphan")
+    attachments = relationship(
+        "MessageFile", back_populates="message", cascade="all, delete-orphan"
+    )
 
 
 class MessageRead(IntIdPkMixin, Base):

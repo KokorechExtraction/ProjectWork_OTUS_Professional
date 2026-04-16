@@ -1,3 +1,17 @@
 .message-box { min-height: 260px; max-height: 420px; overflow-y: auto; }
 pre { white-space: pre-wrap; word-break: break-word; }
 #statusAlert { position: sticky; top: 1rem; z-index: 1020; }
+.message-item + .message-item { border-top: 1px solid #e9ecef; }
+.message-meta { font-size: 0.85rem; color: #6c757d; }
+.user-search-item button { white-space: nowrap; }
+.wall-actions { min-width: min(100%, 360px); }
+.comment-item { padding: 0.5rem 0.75rem; border-radius: 0.75rem; background: #f8f9fa; }
+.comment-meta { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.25rem; }
+.profile-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+.profile-label { font-size: 0.8rem; color: #6c757d; margin-bottom: 0.15rem; }
+.profile-value { font-weight: 600; word-break: break-word; }
+.admin-users { max-height: 360px; overflow-y: auto; }
+.admin-user-row + .admin-user-row { border-top: 1px solid #e9ecef; }
+.admin-user-meta { font-size: 0.8rem; color: #6c757d; }
+.admin-user-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.post-admin-actions { border-top: 1px solid #e9ecef; padding-top: 0.75rem; }
