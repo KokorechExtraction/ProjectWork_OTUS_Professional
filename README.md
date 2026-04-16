@@ -1,23 +1,23 @@
 # Async Messenger
 
-`Async Messenger` is an async FastAPI-based messenger with a web UI, private chats, user walls, file attachments, admin tools, Redis pub/sub, and Redis cache.
+`Async Messenger` — это асинхронный мессенджер на базе FastAPI с веб-интерфейсом, приватными чатами, стенами пользователей, файловыми вложениями, инструментами администратора, Redis pub/sub и Redis-кэшем.
 
-## Features
+## Возможности
 
-- JWT registration and login
-- private one-to-one chats
-- realtime updates over WebSocket
-- messages with file attachments
-- read status for messages
-- user walls instead of a global post feed
-- likes and comments for posts
-- edit and delete own messages and posts
-- admin actions: ban/unban users, inspect user chats, moderate content
-- Docker Compose setup
-- Alembic migrations
-- Redis cache and pub/sub
+- регистрация и вход через JWT
+- приватные чаты один на один
+- обновления в реальном времени через WebSocket
+- сообщения с файловыми вложениями
+- статус прочтения для сообщений
+- стены пользователей вместо глобальной ленты постов
+- лайки и комментарии для постов
+- редактирование и удаление собственных сообщений и постов
+- действия администратора: бан/разбан пользователей, просмотр пользовательских чатов, модерация контента
+- настройка Docker Compose
+- миграции Alembic
+- Redis-кэш и pub/sub
 
-## Stack
+## Стек
 
 - Python 3.13
 - FastAPI
@@ -31,47 +31,47 @@
 - Ruff
 - Mypy
 
-## Architecture Summary
+## Краткое описание архитектуры
 
-The project is split into clear layers:
+Проект разделён на чёткие слои:
 
-- `app/api` - HTTP and WebSocket endpoints
-- `app/services` - business logic
-- `app/repositories` - SQLAlchemy queries
-- `app/models` - ORM models
-- `app/schemas` - Pydantic schemas and mappers
-- `app/websocket` - realtime connection manager
-- `app/core` - config, logging, Redis, security
+- `app/api` - HTTP- и WebSocket-эндпоинты
+- `app/services` - бизнес-логика
+- `app/repositories` - запросы SQLAlchemy
+- `app/models` - ORM-модели
+- `app/schemas` - схемы Pydantic и мапперы
+- `app/websocket` - менеджер realtime-соединений
+- `app/core` - конфиг, логирование, Redis, безопасность
 
-Services return internal models. The API layer converts them into `...Out` response schemas.
+Сервисы возвращают внутренние модели. Слой API преобразует их в схемы ответа `...Out`.
 
-## Redis Usage
+## Использование Redis
 
-Redis is used in two real tasks:
+Redis используется в двух реальных задачах:
 
-- `pub/sub` for chat events
-  message events are published into Redis and can be delivered between multiple app instances
-- caching
-  the user list and user walls are cached in Redis
+- `pub/sub` для событий чата
+  события сообщений публикуются в Redis и могут доставляться между несколькими экземплярами приложения
+- кэширование
+  список пользователей и стены пользователей кэшируются в Redis
 
-If Redis is unavailable, chat delivery falls back to local in-memory dispatch inside the current process.
+Если Redis недоступен, доставка чата откатывается к локальной внутрипроцессной рассылке в памяти внутри текущего процесса.
 
 ## Docker Compose
 
-[docker-compose.yml](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docker-compose.yml) starts:
+[docker-compose.yml](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docker-compose.yml) запускает:
 
-- `app` on [http://127.0.0.1:8000](http://127.0.0.1:8000)
-- `app2` on [http://127.0.0.1:8001](http://127.0.0.1:8001)
-- `db` for PostgreSQL
-- `redis` for Redis
+- `app` на [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- `app2` на [http://127.0.0.1:8001](http://127.0.0.1:8001)
+- `db` для PostgreSQL
+- `redis` для Redis
 
-This setup is useful for demonstrating multi-instance Redis pub/sub behavior.
+Эта настройка полезна для демонстрации поведения Redis pub/sub с несколькими экземплярами.
 
-## Quick Start
+## Быстрый старт
 
-### 1. Prepare `.env`
+### 1. Подготовьте `.env`
 
-Copy the template:
+Скопируйте шаблон:
 
 ```bash
 cp .env.example .env
@@ -83,7 +83,7 @@ PowerShell:
 Copy-Item .env.example .env
 ```
 
-Check these values:
+Проверьте эти значения:
 
 - `JWT_SECRET_KEY`
 - `DB_*`
@@ -92,63 +92,63 @@ Check these values:
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
 
-The bootstrap admin user is created automatically on app startup.
+Bootstrap-пользователь администратора создаётся автоматически при запуске приложения.
 
-### 2. Run with Docker
+### 2. Запуск с Docker
 
 ```bash
 docker compose up --build
 ```
 
-Available after startup:
+Доступно после запуска:
 
 - UI: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
 - Swagger: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- second app instance: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
+- второй экземпляр приложения: [http://127.0.0.1:8001/](http://127.0.0.1:8001/)
 
-### 3. Run locally without Docker
+### 3. Запуск локально без Docker
 
 ```bash
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-## Main Scenarios
+## Основные сценарии
 
-### Authentication
+### Аутентификация
 
-1. Register with `POST /api/v1/auth/register`
-2. Login with `POST /api/v1/auth/login`
-3. Receive a Bearer token
-4. Use the token for HTTP and WebSocket access
+1. Зарегистрируйтесь через `POST /api/v1/auth/register`
+2. Войдите через `POST /api/v1/auth/login`
+3. Получите Bearer-токен
+4. Используйте токен для доступа по HTTP и WebSocket
 
-### Chats
+### Чаты
 
-1. Create or reuse a private chat
-2. Open the chat list
-3. Send a message or a message with attachments
-4. Receive realtime updates through `/api/v1/ws?token=<jwt>`
+1. Создайте или повторно используйте приватный чат
+2. Откройте список чатов
+3. Отправьте сообщение или сообщение с вложениями
+4. Получайте обновления в реальном времени через `/api/v1/ws?token=<jwt>`
 
-### User Walls
+### Стены пользователей
 
-1. Open your own wall or another user's wall
-2. Create a post
-3. Edit or delete your own post
-4. Comment and like posts
+1. Откройте свою собственную стену или стену другого пользователя
+2. Создайте пост
+3. Отредактируйте или удалите свой пост
+4. Комментируйте посты и ставьте лайки
 
-### Administration
+### Администрирование
 
-Admins can:
+Администраторы могут:
 
-- list users
-- ban and unban users
-- inspect chats for a specific user
-- write into any chat and edit any message
-- edit and delete any post
+- просматривать список пользователей
+- банить и разбанивать пользователей
+- просматривать чаты конкретного пользователя
+- писать в любой чат и редактировать любое сообщение
+- редактировать и удалять любой пост
 
-The admin panel is embedded into the main page UI and appears after admin login.
+Панель администратора встроена в UI главной страницы и появляется после входа администратора.
 
-## API Groups
+## Группы API
 
 ### Auth
 
@@ -200,15 +200,15 @@ The admin panel is embedded into the main page UI and appears after admin login.
 
 - `GET /api/v1/ws?token=<jwt>`
 
-## Quality Status
+## Состояние качества
 
-Current state:
+Текущее состояние:
 
-- `ruff format .` - passes
-- `ruff check .` - passes
+- `ruff format .` - проходит
+- `ruff check .` - проходит
 - `pytest -q -p no:cacheprovider` - `22 passed`
 
-## Documentation
+## Документация
 
 - [Architecture](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docs/ARCHITECTURE.md)
 - [API and business rules](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docs/API.md)

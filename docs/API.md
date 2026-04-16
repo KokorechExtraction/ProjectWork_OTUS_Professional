@@ -1,170 +1,170 @@
-# API and Business Rules
+# API и бизнес-правила
 
-## Authentication
+## Аутентификация
 
-Protected HTTP endpoints use:
+Защищённые HTTP-эндпоинты используют:
 
 ```text
 Authorization: Bearer <token>
 ```
 
-WebSocket uses:
+WebSocket использует:
 
 ```text
 /api/v1/ws?token=<jwt>
 ```
 
-## Common Status Codes
+## Общие коды статусов
 
-- `400 Bad Request` - business error or invalid action
-- `401 Unauthorized` - missing or invalid token
-- `404 Not Found` - entity not found
-- `409 Conflict` - state conflict, for example deleting an already attached file
+- `400 Bad Request` - ошибка бизнес-логики или недопустимое действие
+- `401 Unauthorized` - отсутствующий или недействительный токен
+- `404 Not Found` - сущность не найдена
+- `409 Conflict` - конфликт состояния, например удаление уже прикреплённого файла
 
-## Endpoints
+## Эндпоинты
 
 ### Auth
 
-- `POST /api/v1/auth/register` - register a user
-- `POST /api/v1/auth/login` - login and receive JWT
-- `GET /api/v1/auth/me` - current user
+- `POST /api/v1/auth/register` - зарегистрировать пользователя
+- `POST /api/v1/auth/login` - войти и получить JWT
+- `GET /api/v1/auth/me` - текущий пользователь
 
 ### Users
 
-- `GET /api/v1/users` - list users or search by `q`
-- `PATCH /api/v1/users/me` - update current username and email
-- `GET /api/v1/users/{user_id}` - get a user by id
+- `GET /api/v1/users` - список пользователей или поиск по `q`
+- `PATCH /api/v1/users/me` - обновить текущее имя пользователя и email
+- `GET /api/v1/users/{user_id}` - получить пользователя по id
 
 ### Chats
 
-- `POST /api/v1/chats/private` - create or reuse a private chat
-- `GET /api/v1/chats` - list chats for current user
+- `POST /api/v1/chats/private` - создать или повторно использовать приватный чат
+- `GET /api/v1/chats` - список чатов текущего пользователя
 
 ### Messages
 
-- `POST /api/v1/chats/{chat_id}/messages` - send a message
-- `GET /api/v1/chats/{chat_id}/messages` - get chat history
-- `POST /api/v1/messages/{message_id}/read` - mark a message as read
-- `PATCH /api/v1/messages/{message_id}` - edit a message
-- `DELETE /api/v1/messages/{message_id}` - delete a message
+- `POST /api/v1/chats/{chat_id}/messages` - отправить сообщение
+- `GET /api/v1/chats/{chat_id}/messages` - получить историю чата
+- `POST /api/v1/messages/{message_id}/read` - отметить сообщение как прочитанное
+- `PATCH /api/v1/messages/{message_id}` - отредактировать сообщение
+- `DELETE /api/v1/messages/{message_id}` - удалить сообщение
 
 ### Files
 
-- `POST /api/v1/files/upload` - upload a file
-- `GET /api/v1/files/{file_id}/download` - download a file
-- `DELETE /api/v1/files/{file_id}` - delete own unattached file
+- `POST /api/v1/files/upload` - загрузить файл
+- `GET /api/v1/files/{file_id}/download` - скачать файл
+- `DELETE /api/v1/files/{file_id}` - удалить свой неприкреплённый файл
 
 ### Posts
 
-- `POST /api/v1/posts` - create a post
-- `PATCH /api/v1/posts/{post_id}` - edit a post
-- `DELETE /api/v1/posts/{post_id}` - delete a post
-- `GET /api/v1/posts/user/{user_id}` - get a user's wall
-- `POST /api/v1/posts/{post_id}/comments` - add a comment
-- `POST /api/v1/posts/{post_id}/like` - add like
-- `DELETE /api/v1/posts/{post_id}/like` - remove like
+- `POST /api/v1/posts` - создать пост
+- `PATCH /api/v1/posts/{post_id}` - отредактировать пост
+- `DELETE /api/v1/posts/{post_id}` - удалить пост
+- `GET /api/v1/posts/user/{user_id}` - получить стену пользователя
+- `POST /api/v1/posts/{post_id}/comments` - добавить комментарий
+- `POST /api/v1/posts/{post_id}/like` - добавить лайк
+- `DELETE /api/v1/posts/{post_id}/like` - убрать лайк
 
 ### Admin
 
-- `GET /api/v1/admin/users` - list users
-- `GET /api/v1/admin/users/{user_id}/chats` - inspect chats for a specific user
-- `POST /api/v1/admin/users/{user_id}/ban` - ban a user
-- `POST /api/v1/admin/users/{user_id}/unban` - unban a user
-- `DELETE /api/v1/admin/posts/{post_id}` - delete any post
+- `GET /api/v1/admin/users` - список пользователей
+- `GET /api/v1/admin/users/{user_id}/chats` - просмотреть чаты конкретного пользователя
+- `POST /api/v1/admin/users/{user_id}/ban` - забанить пользователя
+- `POST /api/v1/admin/users/{user_id}/unban` - разбанить пользователя
+- `DELETE /api/v1/admin/posts/{post_id}` - удалить любой пост
 
 ### WebSocket
 
-- `GET /api/v1/ws?token=<jwt>` - connect to the realtime channel
+- `GET /api/v1/ws?token=<jwt>` - подключиться к каналу реального времени
 
-## Business Rules
+## Бизнес-правила
 
-### Registration and Login
+### Регистрация и вход
 
-- username and email must be unique
-- the password is validated by the registration schema before persistence
-- login returns an access token
+- имя пользователя и email должны быть уникальными
+- пароль валидируется схемой регистрации до сохранения
+- вход возвращает токен доступа
 
-### Users
+### Пользователи
 
-- `/users` supports search through `q`
-- the user list and search results are cached in Redis
-- profile updates invalidate both user-list cache and wall cache
+- `/users` поддерживает поиск через `q`
+- список пользователей и результаты поиска кэшируются в Redis
+- обновления профиля инвалидируют и кэш списка пользователей, и кэш стены
 
-### Private Chats
+### Приватные чаты
 
-- you cannot create a chat with yourself
-- the other user must exist
-- if a private chat already exists, it is reused instead of creating a duplicate
+- вы не можете создать чат с самим собой
+- другой пользователь должен существовать
+- если приватный чат уже существует, он повторно используется вместо создания дубликата
 
-### Messages
+### Сообщения
 
-- a regular user must belong to the chat
-- an admin can read and write in any chat
-- a message must contain text or at least one attachment
-- attached files must belong to the current user
-- the author can edit and delete their own message
-- an admin can edit and delete any message
+- обычный пользователь должен принадлежать чату
+- администратор может читать и писать в любом чате
+- сообщение должно содержать текст или хотя бы одно вложение
+- прикреплённые файлы должны принадлежать текущему пользователю
+- автор может редактировать и удалять своё сообщение
+- администратор может редактировать и удалять любое сообщение
 
-### Files
+### Файлы
 
-- files are uploaded first
-- later `file_id` values can be passed in `file_ids` while sending a message
-- a file can be downloaded by its owner or by a participant of the chat where it was sent
-- only an unattached file owned by the current user can be deleted
+- файлы сначала загружаются
+- позже значения `file_id` могут быть переданы в `file_ids` при отправке сообщения
+- файл может быть скачан его владельцем или участником чата, в который он был отправлен
+- только неприкреплённый файл, принадлежащий текущему пользователю, может быть удалён
 
-### Posts and Walls
+### Посты и стены
 
-- there is no global post feed; the project is wall-based
-- the author can edit and delete their own post
-- an admin can edit and delete any post
-- like and unlike are idempotent
-- user walls are cached in Redis
-- post, like, and comment changes invalidate the wall cache
+- глобальной ленты постов нет; проект построен вокруг стен
+- автор может редактировать и удалять свой пост
+- администратор может редактировать и удалять любой пост
+- like и unlike идемпотентны
+- стены пользователей кэшируются в Redis
+- изменения постов, лайков и комментариев инвалидируют кэш стены
 
-### Comments
+### Комментарии
 
-- a comment can be created only for an existing post
-- after a new comment is created, the post author's wall cache is invalidated
+- комментарий может быть создан только для существующего поста
+- после создания нового комментария кэш стены автора поста инвалидируется
 
-### Admin
+### Администрирование
 
-- admin endpoints require an admin user
-- the bootstrap admin is created from `ADMIN_*` environment variables
-- ban and unban also invalidate user-list and wall caches
+- административные эндпоинты требуют пользователя-администратора
+- bootstrap-администратор создаётся из переменных окружения `ADMIN_*`
+- бан и разбан также инвалидируют кэш списка пользователей и стен
 
-## WebSocket Events
+## WebSocket-события
 
-The realtime channel is used for message and read-status delivery.
+Канал реального времени используется для доставки сообщений и статусов прочтения.
 
-In practice the chat layer uses events such as:
+На практике слой чата использует такие события, как:
 
 - `message:new`
 - `message:read`
 - `message:updated`
 - `message:deleted`
 
-The websocket endpoint also sends an `ack` response for incoming client messages on the connection channel itself.
+WebSocket-эндпоинт также отправляет ответ `ack` для входящих клиентских сообщений на самом канале соединения.
 
-## Redis and Cache Behavior
+## Поведение Redis и кэша
 
 ### Pub/Sub
 
-- `broadcast_to_chat(...)` publishes the event into Redis first
-- each app instance has a listener for the Redis channel
-- the event is then forwarded into local websocket connections for the target chat
+- `broadcast_to_chat(...)` сначала публикует событие в Redis
+- каждый экземпляр приложения имеет listener для Redis-канала
+- затем событие перенаправляется в локальные WebSocket-соединения для целевого чата
 
 ### Cache
 
-Cached data includes:
+Кэшируемые данные включают:
 
-- user list
-- user search results
-- user walls
+- список пользователей
+- результаты поиска пользователей
+- стены пользователей
 
-Cache invalidation happens on:
+Инвалидация кэша происходит при:
 
-- profile updates
-- post create, edit, and delete
-- new comments
-- like and unlike
-- user ban and unban
+- обновлениях профиля
+- создании, редактировании и удалении постов
+- новых комментариях
+- like и unlike
+- бане и разбане пользователя

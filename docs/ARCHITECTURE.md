@@ -1,18 +1,18 @@
-# Project Architecture
+# Архитектура проекта
 
-## High-Level Layout
+## Высокоуровневая структура
 
-The project is split into explicit layers:
+Проект разделён на явные слои:
 
-- `API` - HTTP and WebSocket endpoints
-- `Services` - business rules and coordination
-- `Repositories` - SQLAlchemy access to the database
-- `Models` - ORM entities
-- `Schemas and mappers` - request/response contracts and model-to-API conversion
-- `WebSocket manager` - active realtime connections and chat event delivery
-- `Core` - config, logging, Redis, cache helpers, security
+- `API` - HTTP- и WebSocket-эндпоинты
+- `Services` - бизнес-правила и координация
+- `Repositories` - доступ SQLAlchemy к базе данных
+- `Models` - ORM-сущности
+- `Schemas and mappers` - контракты запросов/ответов и преобразование моделей в API
+- `WebSocket manager` - активные realtime-соединения и доставка событий чата
+- `Core` - конфиг, логирование, Redis, хелперы кэша, безопасность
 
-## Directory Map
+## Карта директорий
 
 ```text
 app/
@@ -33,161 +33,161 @@ docs/
 tests/
 ```
 
-## Layer Responsibilities
+## Ответственность слоёв
 
 ### API Layer
 
-Located in `app/api/v1`.
+Находится в `app/api/v1`.
 
-Responsibilities:
+Ответственность:
 
-- accept HTTP and WebSocket requests
-- get FastAPI dependencies
-- call services
-- map internal results into `...Out` schemas
-- return HTTP responses
+- принимать HTTP- и WebSocket-запросы
+- получать зависимости FastAPI
+- вызывать сервисы
+- преобразовывать внутренние результаты в схемы `...Out`
+- возвращать HTTP-ответы
 
-The API layer should not keep SQLAlchemy query logic or heavy business rules.
+Слой API не должен содержать логику SQLAlchemy-запросов или тяжёлые бизнес-правила.
 
 ### Service Layer
 
-Located in `app/services`.
+Находится в `app/services`.
 
-Responsibilities:
+Ответственность:
 
-- enforce business rules
-- coordinate multiple repositories
-- trigger side effects such as Redis pub/sub and websocket broadcasts
+- обеспечивать выполнение бизнес-правил
+- координировать несколько репозиториев
+- запускать побочные эффекты, такие как Redis pub/sub и WebSocket-рассылки
 
-Services work with internal models, not response schemas.
+Сервисы работают с внутренними моделями, а не со схемами ответов.
 
 ### Repository Layer
 
-Located in `app/repositories`.
+Находится в `app/repositories`.
 
-Responsibilities:
+Ответственность:
 
-- encapsulate SQLAlchemy
-- load and persist ORM models
-- hide details such as `select`, `join`, `selectinload`, `commit`, and `refresh`
+- инкапсулировать SQLAlchemy
+- загружать и сохранять ORM-модели
+- скрывать детали, такие как `select`, `join`, `selectinload`, `commit` и `refresh`
 
 ### Schemas and Mappers
 
-Located in `app/schemas`.
+Находится в `app/schemas`.
 
-Responsibilities:
+Ответственность:
 
-- define request contracts (`...Request`)
-- define response contracts (`...Out`)
-- convert ORM models into API-ready structures
+- определять контракты запросов (`...Request`)
+- определять контракты ответов (`...Out`)
+- преобразовывать ORM-модели в структуры, готовые для API
 
-Simple mapping is done with `model_validate(...)`. More complex payloads are assembled in [mappers.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/schemas/mappers.py).
+Простое преобразование выполняется с помощью `model_validate(...)`. Более сложные payload собираются в [mappers.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/schemas/mappers.py).
 
-## HTTP Request Flow
+## Поток HTTP-запроса
 
-Typical path:
+Типичный путь:
 
-1. the client sends an HTTP request
-2. a FastAPI route receives request data
-3. dependencies provide the current user and DB session
-4. the route calls a service
-5. the service calls repositories
-6. repositories read or write ORM models
-7. the route maps the result into `...Out`
-8. the client gets a JSON response
+1. клиент отправляет HTTP-запрос
+2. маршрут FastAPI получает данные запроса
+3. зависимости предоставляют текущего пользователя и сессию БД
+4. маршрут вызывает сервис
+5. сервис вызывает репозитории
+6. репозитории читают или записывают ORM-модели
+7. маршрут преобразует результат в `...Out`
+8. клиент получает JSON-ответ
 
-## WebSocket Flow
+## WebSocket-поток
 
-Realtime is exposed through `/api/v1/ws`.
+Realtime доступен через `/api/v1/ws`.
 
-Connection path:
+Путь подключения:
 
-1. the client opens a WebSocket and passes `token` in the query string
-2. the server decodes JWT
-3. the server loads the user's chats through `AsyncSessionLocal`
-4. `ConnectionManager` accepts the websocket and stores chat membership
-5. later chat events are dispatched to the correct connected users
+1. клиент открывает WebSocket и передаёт `token` в query string
+2. сервер декодирует JWT
+3. сервер загружает чаты пользователя через `AsyncSessionLocal`
+4. `ConnectionManager` принимает WebSocket и сохраняет принадлежность к чатам
+5. позже события чата отправляются правильным подключённым пользователям
 
-## Redis in the Architecture
+## Redis в архитектуре
 
-Redis has two real roles in the system.
+Redis имеет в системе две реальные роли.
 
-### 1. Pub/Sub for Chat Events
+### 1. Pub/Sub для событий чата
 
-`ConnectionManager.broadcast_to_chat(...)` first publishes into the Redis channel `chat_events`.
+`ConnectionManager.broadcast_to_chat(...)` сначала публикует в Redis-канал `chat_events`.
 
-Then:
+Затем:
 
-1. one backend instance publishes the event
-2. listeners in all backend instances read the Redis pub/sub channel
-3. each local manager forwards the event to its own connected websocket clients
+1. один экземпляр backend публикует событие
+2. listener'ы во всех экземплярах backend читают Redis pub/sub-канал
+3. каждый локальный менеджер перенаправляет событие своим собственным подключённым WebSocket-клиентам
 
-This removes the realtime dependency on the memory of a single process.
+Это убирает зависимость realtime от памяти одного процесса.
 
 ### 2. Cache
 
-Redis is also used to cache:
+Redis также используется для кэширования:
 
-- the user list and search results
-- user walls
+- списка пользователей и результатов поиска
+- стен пользователей
 
-When source data changes, cache invalidation is triggered through helper functions in [cache.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/core/cache.py).
+Когда исходные данные меняются, инвалидация кэша запускается через хелпер-функции в [cache.py](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/core/cache.py).
 
-## Multi-Instance Setup
+## Конфигурация с несколькими экземплярами
 
-[docker-compose.yml](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docker-compose.yml) starts two backend instances:
+[docker-compose.yml](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/docker-compose.yml) запускает два экземпляра backend:
 
-- `app` on `8000`
-- `app2` on `8001`
+- `app` на `8000`
+- `app2` на `8001`
 
-They share:
+Они разделяют:
 
-- one PostgreSQL container
-- one Redis container
+- один контейнер PostgreSQL
+- один контейнер Redis
 
-This is the intended demo setup for Redis-backed pub/sub across multiple app instances.
+Это предназначенная демонстрационная конфигурация для Redis-backed pub/sub между несколькими экземплярами приложения.
 
-## Persistence and External Services
+## Хранение данных и внешние сервисы
 
 ### PostgreSQL
 
-Stores persistent data:
+Хранит постоянные данные:
 
-- users
-- chats
-- chat participants
-- messages
-- files
-- posts
-- comments
-- likes
+- пользователей
+- чаты
+- участников чатов
+- сообщения
+- файлы
+- посты
+- комментарии
+- лайки
 
 ### Redis
 
-Handles temporary/shared runtime concerns:
+Обрабатывает временные/общие runtime-задачи:
 
-- chat events
-- cache entries
+- события чата
+- записи кэша
 
-## Presentation Layer
+## Слой представления
 
-The frontend is intentionally simple and not based on a separate SPA framework:
+Фронтенд намеренно простой и не основан на отдельном SPA-фреймворке:
 
 - [index.html](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/templates/index.html)
 - [app.js](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/static/js/app.js)
 - [app.css](C:/Users/admin/PycharmProjects/ProjectWork_OTUS_Professional/app/static/css/app.css)
 
-The UI acts as a thin client:
+UI действует как тонкий клиент:
 
-- it calls REST API endpoints
-- it keeps one WebSocket connection for realtime
-- it renders chats, walls, and the admin panel
+- вызывает REST API-эндпоинты
+- держит одно WebSocket-соединение для realtime
+- рендерит чаты, стены и панель администратора
 
-## Why This Design
+## Почему такой дизайн
 
-- FastAPI fits async HTTP and WebSocket well
-- async SQLAlchemy provides one consistent data-access model
-- services and repositories reduce coupling
-- Pydantic schemas define a stable API contract
-- Redis solves both cache and cross-instance realtime delivery
-- Jinja2 plus Bootstrap keeps the UI simple and maintainable
+- FastAPI хорошо подходит для асинхронного HTTP и WebSocket
+- асинхронный SQLAlchemy даёт одну согласованную модель доступа к данным
+- сервисы и репозитории уменьшают связанность
+- схемы Pydantic определяют стабильный контракт API
+- Redis решает и кэш, и доставку realtime между экземплярами
+- Jinja2 вместе с Bootstrap сохраняет UI простым и поддерживаемым
