@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+from typing import Any, cast
 
 from sqlalchemy import engine_from_config, pool
 
@@ -30,8 +31,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    section = config.get_section(config.config_ini_section)
+    if section is None:
+        raise RuntimeError("Alembic configuration section is missing")
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        cast(dict[str, Any], section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
